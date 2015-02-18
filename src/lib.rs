@@ -1,7 +1,7 @@
 #![feature(core)]
 extern crate "rustc-serialize" as rustc_serialize;
 
-mod set_one;
+pub mod set_one;
 
 #[cfg(test)]
 mod tests {
