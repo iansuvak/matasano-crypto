@@ -5,7 +5,7 @@ pub mod set_one;
 
 #[cfg(test)]
 mod tests {
-    use set_one::{hex_to_base64, fixed_xor};
+    use set_one::{hex_to_base64, fixed_xor, single_byte_xor};
 
     #[test]
     fn test_hex_to_base64() {
@@ -18,6 +18,13 @@ mod tests {
     fn test_fixed_xor() {
         assert_eq!(fixed_xor("1c0111001f010100061a024b53535009181c", "686974207468652062756c6c277320657965").unwrap().as_slice(),
         "746865206b696420646f6e277420706c6179"
+        );
+    }
+
+    #[test]
+    fn test_single_byte_xor() {
+        assert_eq!(single_byte_xor("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736").unwrap().as_slice(),
+        "Cooking MC\'s like a pound of bacon"
         );
     }
 }
