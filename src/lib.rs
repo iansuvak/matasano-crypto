@@ -1,11 +1,16 @@
 #![feature(core)]
+#![feature(io)]
+#![feature(path)]
+use std::old_path::Path;
+
 extern crate "rustc-serialize" as rustc_serialize;
+extern crate collections;
 
 pub mod set_one;
 
 #[cfg(test)]
 mod tests {
-    use set_one::{hex_to_base64, fixed_xor, single_byte_xor};
+    use set_one::{hex_to_base64, fixed_xor, single_byte_xor, detect_single_byte_xor};
 
     #[test]
     fn test_hex_to_base64() {
@@ -25,6 +30,13 @@ mod tests {
     fn test_single_byte_xor() {
         assert_eq!(single_byte_xor("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736").unwrap().as_slice(),
         "Cooking MC\'s like a pound of bacon"
+        );
+    }
+
+    #[test]
+    fn test_detect_single_byte_xor() {
+        assert_eq!(detect_single_byte_xor().as_slice(),
+        "Now that the party is jumping\n"
         );
     }
 }
