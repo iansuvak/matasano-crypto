@@ -89,6 +89,34 @@ fn score_character(x: char) -> u32 {
     }
 }
 
+pub fn repeating_key_xor(key: &'static str, plain: &str) -> String {
+    let bkey: &'static [u8] = key.as_bytes();
+    let len: usize = key.len();
+    let mut rkey = RepeatingKey {key:bkey, curr: bkey[0], curr_index: 0, key_length:len};
+    let mut cipher: Vec<u8> = Vec::new();
+    for x in plain.as_bytes().iter() {
+        cipher.push(x ^ rkey.curr);
+        rkey.next();
+    }
+    cipher.to_hex()
+}
+
+struct RepeatingKey {
+   key: &'static [u8],
+   curr: u8,
+   curr_index: usize,
+   key_length: usize,
+}
+
+impl Iterator for RepeatingKey {
+    type Item = u8;
+    fn next(&mut self) -> Option<u8> {
+        self.curr_index = if (self.curr_index == (self.key_length - 1)) {0} else {self.curr_index+1};
+        self.curr = self.key[self.curr_index];
+        Some(self.curr)
+    }
+}
+
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct CryptoError {
     pub desc: &'static str,
