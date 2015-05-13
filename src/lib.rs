@@ -1,9 +1,7 @@
 #![feature(core)]
 #![feature(io)]
-#![feature(path)]
-use std::old_path::Path;
 
-extern crate "rustc-serialize" as rustc_serialize;
+extern crate rustc_serialize;
 extern crate collections;
 
 pub mod set_one;

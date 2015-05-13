@@ -4,4 +4,4 @@ name = "matasano-crypto"
 version = "0.0.1"
 authors = ["Ian Suvak <ian.suvak@gmail.com>"]
 [dependencies]
-rustc-serialize="0.2"
+rustc-serialize="0.3"

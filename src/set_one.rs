@@ -2,10 +2,12 @@
 
 use rustc_serialize::hex::{FromHex, FromHexError, ToHex};
 use rustc_serialize::base64::{ToBase64, STANDARD};
-use std::old_path::Path;
-use std::old_io::{BufferedReader, File};
-use std::error::FromError;
+use std::path::Path;
+use std::io::{BufReader, BufRead};
+use std::fs::File;
+use std::error::Error;
 use collections::string::FromUtf8Error;
+use std::fmt;
 
 pub fn hex_to_base64(input: &str) -> Result<String, FromHexError> {
     match input.from_hex() {
@@ -30,13 +32,14 @@ pub fn single_byte_xor(input: &str) -> Result<String, FromHexError> {
 }
 
 pub fn detect_single_byte_xor() -> String {
-    let p = Path::new("/home/cr0atian/code/matasano-crypto/resources/4.txt");
-    let mut f = BufferedReader::new(File::open(&p));
+    //let p = Path::new("/home/cr0atian/code/matasano-crypto/resources/4.txt");
+    let p = try!(File::open("/home/cr0atian/code/matasano-crypto/resources/4.txt"));
+    let mut f = BufReader::new(&p);
     let mut max_score = 0u32;
     let mut current_output = String::new();
     for line in f.lines() {
         let l = line.unwrap();
-        let cipher = l.as_slice();
+        let cipher = l.as_str();
         let (score, output) = score_string(cipher).unwrap();
         if score > max_score {
             max_score = score;
@@ -57,9 +60,6 @@ fn score_string(input: &str) -> Result<(u32, String), CryptoError> {
         let mut score = 0u32;
         for i in cipher.iter() {
             let character = i ^ xor_byte;
-            //if character < 32u8 || character > 127u8 {
-                //return Err(CryptoError { desc: "Xored string out of utf-8 range", })
-            //}
             score += score_character(character as char);
             plain.push(character);
         }
@@ -117,23 +117,26 @@ impl Iterator for RepeatingKey {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct CryptoError {
     pub desc: &'static str,
 }
 
-impl FromError<FromHexError> for CryptoError {
-    fn from_error(err: FromHexError) -> CryptoError {
-        CryptoError {
-            desc: "Hex Error has ocurred",
-        }
+impl Display for CryptoError {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result {
     }
 }
 
-impl FromError<FromUtf8Error> for CryptoError {
-    fn from_error(err: FromUtf8Error) -> CryptoError {
-        CryptoError {
-            desc: "Utf 8 Error has ocurred",
-        }
+
+impl Error for CryptoError {
+    fn description(&self) -> &str {
+        "Error has ocurred"
     }
 }
+
+
+//impl Error<FromUtf8Error> for CryptoError {
+    //fn description(&self) -> &str {
+        //"Utf 8 Error has ocurred"
+    //}
+//}
