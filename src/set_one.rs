@@ -2,13 +2,11 @@
 
 use rustc_serialize::hex::{FromHex, FromHexError, ToHex};
 use rustc_serialize::base64::{ToBase64, STANDARD};
-use std::path::Path;
 use std::io::{BufReader, BufRead};
 use std::io;
 use std::fs::File;
 use std::error::Error;
-use std::string::FromUtf8Error;
-use collections::string::String;
+use std::string::{String, FromUtf8Error};
 use std::fmt;
 
 pub fn hex_to_base64(input: &str) -> Result<String, FromHexError> {
@@ -29,19 +27,19 @@ pub fn fixed_xor(input_a: &str, input_b: &str) -> Result<String, FromHexError> {
 }
 
 pub fn single_byte_xor(input: &str) -> Result<String, FromHexError> {
-    let (score, answer) = score_string(input).unwrap();
+    let (_, answer) = score_string(input).unwrap();
     Ok(answer)
 }
 
 pub fn detect_single_byte_xor() -> Result<String, io::Error> {
     //let p = Path::new("/home/cr0atian/code/matasano-crypto/resources/4.txt");
-    let p = try!(File::open("/home/cr0atian/code/matasano-crypto/resources/4.txt"));
-    let mut f = BufReader::new(&p);
+    let p = try!(File::open("resources/4.txt"));
+    let f = BufReader::new(&p);
     let mut max_score = 0u32;
     let mut current_output = String::new();
     for line in f.lines() {
         let l = line.unwrap();
-        let cipher = l.as_str();
+        let cipher = &l;
         let (score, output) = score_string(cipher).unwrap();
         if score > max_score {
             max_score = score;
@@ -73,7 +71,7 @@ fn score_string(input: &str) -> Result<(u32, String), CryptoError> {
     let result = String::from_utf8(answer);
     match result {
         Ok(output) => Ok((best_score, output)),
-        Err(_) => Ok((best_score, String::from_str("")))
+        Err(_) => Ok((best_score, "".to_string()))
     }
 }
 
@@ -113,7 +111,7 @@ struct RepeatingKey {
 impl Iterator for RepeatingKey {
     type Item = u8;
     fn next(&mut self) -> Option<u8> {
-        self.curr_index = if (self.curr_index == (self.key_length - 1)) {0} else {self.curr_index+1};
+        self.curr_index = if self.curr_index == (self.key_length - 1) {0} else {self.curr_index+1};
         self.curr = self.key[self.curr_index];
         Some(self.curr)
     }
@@ -126,14 +124,14 @@ pub struct CryptoError {
 
 
 impl From<FromUtf8Error> for CryptoError {
-    fn from(e: FromUtf8Error) -> Self {
+    fn from(_: FromUtf8Error) -> Self {
        CryptoError {
            desc: "no valid Utf-8 decoded",
        }
     }
 }
 impl From<FromHexError> for CryptoError {
-    fn from(e: FromHexError) -> Self {
+    fn from(_: FromHexError) -> Self {
        CryptoError {
            desc: "invalid hex input",
        }
