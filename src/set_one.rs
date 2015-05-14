@@ -4,9 +4,11 @@ use rustc_serialize::hex::{FromHex, FromHexError, ToHex};
 use rustc_serialize::base64::{ToBase64, STANDARD};
 use std::path::Path;
 use std::io::{BufReader, BufRead};
+use std::io;
 use std::fs::File;
 use std::error::Error;
-use collections::string::FromUtf8Error;
+use std::string::FromUtf8Error;
+use collections::string::String;
 use std::fmt;
 
 pub fn hex_to_base64(input: &str) -> Result<String, FromHexError> {
@@ -31,7 +33,7 @@ pub fn single_byte_xor(input: &str) -> Result<String, FromHexError> {
     Ok(answer)
 }
 
-pub fn detect_single_byte_xor() -> String {
+pub fn detect_single_byte_xor() -> Result<String, io::Error> {
     //let p = Path::new("/home/cr0atian/code/matasano-crypto/resources/4.txt");
     let p = try!(File::open("/home/cr0atian/code/matasano-crypto/resources/4.txt"));
     let mut f = BufReader::new(&p);
@@ -47,7 +49,7 @@ pub fn detect_single_byte_xor() -> String {
         }
         println!("{} : {}", score, current_output);
     }
-    current_output
+    Ok(current_output)
 }
 
 fn score_string(input: &str) -> Result<(u32, String), CryptoError> {
@@ -117,26 +119,33 @@ impl Iterator for RepeatingKey {
     }
 }
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct CryptoError {
     pub desc: &'static str,
 }
 
-impl Display for CryptoError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result {
+
+impl From<FromUtf8Error> for CryptoError {
+    fn from(e: FromUtf8Error) -> Self {
+       CryptoError {
+           desc: "no valid Utf-8 decoded",
+       }
+    }
+}
+impl From<FromHexError> for CryptoError {
+    fn from(e: FromHexError) -> Self {
+       CryptoError {
+           desc: "invalid hex input",
+       }
     }
 }
 
-
-impl Error for CryptoError {
-    fn description(&self) -> &str {
-        "Error has ocurred"
+impl fmt::Display for CryptoError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // The `f` value implements the `Write` trait, which is what the
+        // write! macro is expecting. Note that this formatting ignores the
+        // various flags provided to format strings.
+        write!(f, "{}", self.desc)
     }
 }
 
-
-//impl Error<FromUtf8Error> for CryptoError {
-    //fn description(&self) -> &str {
-        //"Utf 8 Error has ocurred"
-    //}
-//}
