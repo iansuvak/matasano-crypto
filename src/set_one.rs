@@ -8,6 +8,7 @@ use std::fs::File;
 use std::error::Error;
 use std::string::{String, FromUtf8Error};
 use std::fmt;
+use num::traits::PrimInt;
 
 pub fn hex_to_base64(input: &str) -> Result<String, FromHexError> {
     match input.from_hex() {
@@ -99,6 +100,12 @@ pub fn repeating_key_xor(key: &'static str, plain: &str) -> String {
         rkey.next();
     }
     cipher.to_hex()
+}
+
+pub fn hamming_distance(a: &str, b: &str) -> u32 {
+    a.as_bytes().iter()
+        .zip(b.as_bytes().iter())
+        .fold(0, |acc, (&x, &y)| acc + (x^y).count_ones())
 }
 
 struct RepeatingKey {
