@@ -102,10 +102,14 @@ pub fn repeating_key_xor(key: &'static str, plain: &str) -> String {
     cipher.to_hex()
 }
 
-pub fn hamming_distance(a: &str, b: &str) -> u32 {
-    a.as_bytes().iter()
-        .zip(b.as_bytes().iter())
-        .fold(0, |acc, (&x, &y)| acc + (x^y).count_ones())
+pub fn hamming_distance(a: &str, b: &str) -> Result<u32, CryptoError>  {
+    if a.len() != b.len() {
+        Err(CryptoError { desc: "Cannot calculate hamming distance of strings with unequal lengths"})
+    } else {
+        Ok(a.as_bytes().iter()
+            .zip(b.as_bytes().iter())
+            .fold(0, |acc, (&x, &y)| acc + (x^y).count_ones()))
+    }
 }
 
 struct RepeatingKey {
@@ -147,9 +151,6 @@ impl From<FromHexError> for CryptoError {
 
 impl fmt::Display for CryptoError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // The `f` value implements the `Write` trait, which is what the
-        // write! macro is expecting. Note that this formatting ignores the
-        // various flags provided to format strings.
         write!(f, "{}", self.desc)
     }
 }

@@ -44,7 +44,7 @@ mod tests {
 
     #[test]
     fn test_hamming_distance() {
-        assert_eq!(hamming_distance("this is a test", "wokka wokka!!!"), 37);
+        assert_eq!(hamming_distance("this is a test", "wokka wokka!!!").unwrap(), 37);
     }
 }
 
