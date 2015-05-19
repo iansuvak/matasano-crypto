@@ -5,7 +5,7 @@ pub mod set_one;
 
 #[cfg(test)]
 mod tests {
-    use set_one::{hex_to_base64, fixed_xor, single_byte_xor, detect_single_byte_xor, repeating_key_xor, hamming_distance};
+    use set_one::{hex_to_base64, fixed_xor, single_byte_xor, detect_single_byte_xor, repeating_key_xor, hamming_distance, vigenere};
 
     #[test]
     fn test_hex_to_base64() {
@@ -45,6 +45,11 @@ mod tests {
     #[test]
     fn test_hamming_distance() {
         assert_eq!(hamming_distance("this is a test", "wokka wokka!!!").unwrap(), 37);
+    }
+
+    #[test]
+    fn test_vigenere() {
+        assert_eq!(vigenere("resources/vigenere.txt").unwrap(), "result2");
     }
 }
 

@@ -2,13 +2,18 @@
 
 use rustc_serialize::hex::{FromHex, FromHexError, ToHex};
 use rustc_serialize::base64::{ToBase64, STANDARD};
-use std::io::{BufReader, BufRead};
+use std::io::{BufReader, BufRead, Read};
 use std::io;
 use std::fs::File;
 use std::error::Error;
 use std::string::{String, FromUtf8Error};
 use std::fmt;
 use num::traits::PrimInt;
+use std::str::from_utf8;
+
+const MIN_KEY_LENGTH: usize = 2;
+const MAX_KEY_LENGTH: usize = 40;
+const MAX_SCORE: u32 = MAX_KEY_LENGTH as u32 * 8;
 
 pub fn hex_to_base64(input: &str) -> Result<String, FromHexError> {
     match input.from_hex() {
@@ -112,6 +117,42 @@ pub fn hamming_distance(a: &str, b: &str) -> Result<u32, CryptoError>  {
     }
 }
 
+pub fn vigenere(path: &str) -> Result<String, CryptoError> {
+    let mut cipher : Vec<u8> = Vec::new();
+    let mut f = try!(File::open(path));
+    let cipher_length: usize = try!(f.read_to_end(&mut cipher));
+    let max_key = if cipher_length / 4 < MAX_KEY_LENGTH {
+            cipher_length / 4
+        } else {
+            MAX_KEY_LENGTH
+        };
+    let cipher_slice: &[u8] = &cipher;
+    let mut current_min_score = MAX_SCORE;
+    let mut current_length_guess = 0;
+    for key_length in MIN_KEY_LENGTH..max_key {
+        let mut blocks: Vec<&str> = Vec::new();
+        for block in cipher_slice.chunks(key_length).take(4) {
+            blocks.push(from_utf8(block).unwrap());
+        }
+        let new_score: u32 = try!(average_distance(blocks, key_length));
+        if new_score < current_min_score {
+            current_min_score = new_score;
+            current_length_guess = key_length;
+        }
+        print!("{}, {}\n", current_min_score, current_length_guess);
+    }
+    Ok("result".to_string())
+}
+
+// TODO replace with permutations once stabilized
+fn average_distance(blocks: Vec<&str>, key_length: usize) -> Result<u32, CryptoError> {
+    let mut score = 0u32;
+    for i in 1..3 {
+        score += try!(hamming_distance(blocks[0], blocks[i])) / key_length as u32;
+    }
+    Ok(score / 3)
+}
+
 struct RepeatingKey {
    key: &'static [u8],
    curr: u8,
@@ -145,6 +186,13 @@ impl From<FromHexError> for CryptoError {
     fn from(_: FromHexError) -> Self {
        CryptoError {
            desc: "invalid hex input",
+       }
+    }
+}
+impl From<io::Error> for CryptoError {
+    fn from(_: io::Error) -> Self {
+       CryptoError {
+           desc: "Failed to open file",
        }
     }
 }
