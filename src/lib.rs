@@ -49,7 +49,7 @@ mod tests {
 
     #[test]
     fn test_vigenere() {
-        assert_eq!(vigenere("resources/vigenere.txt").unwrap(), "result2");
+        assert_eq!(vigenere("resources/vigenere.txt").unwrap(), "result");
     }
 }
 

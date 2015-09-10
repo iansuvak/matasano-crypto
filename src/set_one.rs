@@ -1,7 +1,7 @@
 // Implementing each set as a library module and each function solution individually
 
 use rustc_serialize::hex::{FromHex, FromHexError, ToHex};
-use rustc_serialize::base64::{ToBase64, STANDARD};
+use rustc_serialize::base64::{ToBase64, STANDARD, FromBase64, FromBase64Error};
 use std::io::{BufReader, BufRead, Read};
 use std::io;
 use std::fs::File;
@@ -13,7 +13,7 @@ use std::str::from_utf8;
 
 const MIN_KEY_LENGTH: usize = 2;
 const MAX_KEY_LENGTH: usize = 40;
-const MAX_SCORE: u32 = MAX_KEY_LENGTH as u32 * 8;
+const MAX_SCORE: f32 = MAX_KEY_LENGTH as f32 * 8.0;
 
 pub fn hex_to_base64(input: &str) -> Result<String, FromHexError> {
     match input.from_hex() {
@@ -33,7 +33,7 @@ pub fn fixed_xor(input_a: &str, input_b: &str) -> Result<String, FromHexError> {
 }
 
 pub fn single_byte_xor(input: &str) -> Result<String, FromHexError> {
-    let (_, answer) = score_string(input).unwrap();
+    let (_, answer, _) = score_hex_string(input).unwrap();
     Ok(answer)
 }
 
@@ -46,21 +46,24 @@ pub fn detect_single_byte_xor() -> Result<String, io::Error> {
     for line in f.lines() {
         let l = line.unwrap();
         let cipher = &l;
-        let (score, output) = score_string(cipher).unwrap();
+        let (score, output, _) = score_hex_string(cipher).unwrap();
         if score > max_score {
             max_score = score;
             current_output = output;
         }
-        println!("{} : {}", score, current_output);
     }
     Ok(current_output)
 }
 
-fn score_string(input: &str) -> Result<(u32, String), CryptoError> {
-    let cipher = try!(input.from_hex());
+fn score_hex_string(input: &str) -> Result<(u32, String, u8), CryptoError> {
+    score_string(try!(input.from_hex()))
+}
+
+fn score_string(cipher: Vec<u8>) -> Result<(u32, String, u8), CryptoError> {
     // iterating through all of ASCII
     let mut answer: Vec<u8> = Vec::new();
     let mut best_score = 0u32;
+    let mut key_byte = 0u8;
     for xor_byte in (32u8..127) {
         let mut plain: Vec<u8> = Vec::new();
         let mut score = 0u32;
@@ -72,12 +75,13 @@ fn score_string(input: &str) -> Result<(u32, String), CryptoError> {
         if score > best_score {
             best_score = score;
             answer = plain;
+            key_byte = xor_byte;
         }
     }
     let result = String::from_utf8(answer);
     match result {
-        Ok(output) => Ok((best_score, output)),
-        Err(_) => Ok((best_score, "".to_string()))
+        Ok(output) => Ok((best_score, output, key_byte)),
+        Err(_) => Ok((best_score, "".to_string(), key_byte))
     }
 }
 
@@ -95,8 +99,8 @@ fn score_character(x: char) -> u32 {
     }
 }
 
-pub fn repeating_key_xor(key: &'static str, plain: &str) -> String {
-    let bkey: &'static [u8] = key.as_bytes();
+pub fn repeating_key_xor(key: &str, plain: &str) -> String {
+    let bkey: &[u8] = key.as_bytes();
     let len: usize = key.len();
     let mut rkey = RepeatingKey {key:bkey, curr: bkey[0], curr_index: 0, key_length:len};
     let mut cipher: Vec<u8> = Vec::new();
@@ -120,9 +124,12 @@ pub fn hamming_distance(a: &str, b: &str) -> Result<u32, CryptoError>  {
 pub fn vigenere(path: &str) -> Result<String, CryptoError> {
     let mut cipher : Vec<u8> = Vec::new();
     let mut f = try!(File::open(path));
-    let cipher_length: usize = try!(f.read_to_end(&mut cipher));
-    let max_key = if cipher_length / 4 < MAX_KEY_LENGTH {
-            cipher_length / 4
+    try!(f.read_to_end(&mut cipher));
+    cipher = cipher.from_base64().unwrap();
+    let cipher_length = cipher.len();
+    print!("Cipher Length is {}", cipher_length);
+    let max_key = if cipher_length / 8 < MAX_KEY_LENGTH {
+            cipher_length / 8
         } else {
             MAX_KEY_LENGTH
         };
@@ -131,36 +138,55 @@ pub fn vigenere(path: &str) -> Result<String, CryptoError> {
     let mut current_length_guess = 0;
     for key_length in MIN_KEY_LENGTH..max_key {
         let mut blocks: Vec<&str> = Vec::new();
-        for block in cipher_slice.chunks(key_length).take(4) {
+        for block in cipher_slice.chunks(key_length).take(8) {
             blocks.push(from_utf8(block).unwrap());
         }
-        let new_score: u32 = try!(average_distance(blocks, key_length));
+        let new_score: f32 = try!(average_distance(blocks, key_length));
         if new_score < current_min_score {
             current_min_score = new_score;
             current_length_guess = key_length;
         }
-        print!("{}, {}\n", current_min_score, current_length_guess);
     }
+    // Now we know the key_length
+    print!("Min score is {}, keylength is {}\n", current_min_score, current_length_guess);
+    let keylength = current_length_guess;
+    // collation code to split the vector into blocks
+    let mut full_key = Vec::new();
+    for offset in 0..keylength {
+        let mut collated_block = Vec::new();
+        for block in 0..(cipher_slice.len() / keylength) {
+            collated_block.push(cipher_slice[block * keylength + offset]);
+        }
+        // calculate key byte for the current offset in keylength
+        let (_, _, key_char) = score_string(collated_block).unwrap();
+        full_key.push(key_char);
+    }
+    print!("Full key is \"{}\"\n", from_utf8(&full_key).unwrap());
+    let decoded = try!((repeating_key_xor(from_utf8(&full_key).unwrap(), from_utf8(&cipher_slice).unwrap())).from_hex());
+    print!("decoded string is {}", from_utf8(&decoded).unwrap());
     Ok("result".to_string())
 }
 
 // TODO replace with permutations once stabilized
-fn average_distance(blocks: Vec<&str>, key_length: usize) -> Result<u32, CryptoError> {
-    let mut score = 0u32;
-    for i in 1..3 {
-        score += try!(hamming_distance(blocks[0], blocks[i])) / key_length as u32;
+fn average_distance(blocks: Vec<&str>, key_length: usize) -> Result<f32, CryptoError> {
+    let mut score = 0f32;
+    for i in 0..6 {
+        for j in i+1..7 {
+            score += try!(hamming_distance(blocks[i], blocks[j])) as f32;
+        }
     }
-    Ok(score / 3)
+    // Score will scale equally since we are doing the same number of comparisons
+    Ok(score / key_length as f32)
 }
 
-struct RepeatingKey {
-   key: &'static [u8],
+struct RepeatingKey<'a> {
+   key: &'a [u8],
    curr: u8,
    curr_index: usize,
    key_length: usize,
 }
 
-impl Iterator for RepeatingKey {
+impl<'a> Iterator for RepeatingKey<'a> {
     type Item = u8;
     fn next(&mut self) -> Option<u8> {
         self.curr_index = if self.curr_index == (self.key_length - 1) {0} else {self.curr_index+1};
@@ -186,6 +212,14 @@ impl From<FromHexError> for CryptoError {
     fn from(_: FromHexError) -> Self {
        CryptoError {
            desc: "invalid hex input",
+       }
+    }
+}
+
+impl From<FromBase64Error> for CryptoError {
+    fn from(_: FromBase64Error) -> Self {
+       CryptoError {
+           desc: "invalid base64 input",
        }
     }
 }
